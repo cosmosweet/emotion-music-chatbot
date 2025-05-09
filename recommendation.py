@@ -1,6 +1,5 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-import pprint
 from dotenv import load_dotenv
 import os
 import random
@@ -25,38 +24,66 @@ emotion_to_query = {
     '힐링': '마음이 편안해지는 노래'
 }
 
-# 감정 입력 (사용자 입력 기준)
-emotion = '기쁨'
+def recommend_music_by_emotion(emotion: str):
+    """
+    감정 키워드에 따라 Spotify에서 음악을 추천하는 함수
 
-# 검색어 추출
-query = emotion_to_query.get(emotion, emotion)
+    Parameters:
+        emotion (str): 사용자의 감정 ('기쁨', '슬픔', '분노', '힐링' 등)
 
-# 플레이리스트 검색
-results = sp.search(q=query, type='playlist', limit=20)
-playlists = results['playlists']['items']
+    Returns:
+        dict | None: 추천된 플레이리스트 및 곡 정보를 담은 dict
+                     (플레이리스트 이름, 링크, 곡 리스트), 추천 실패 시 None
+    """
+    query = emotion_to_query.get(emotion, emotion)
+    results = sp.search(q=query, type='playlist', limit=20)
+    playlists = results['playlists']['items']
 
-# '찬양' 포함된 항목 제외
-filtered = [
-    p for p in playlists
-    if p is not None and '찬양' not in (p.get('name', '') + p.get('description', ''))
-]
+    filtered = [
+        p for p in playlists
+        if p is not None and '찬양' not in (p.get('name', '') + p.get('description', ''))
+    ]
 
-# 랜덤 추천
-if filtered:
-    playlist = random.choice(filtered)  # 🎯 랜덤 선택
+    if not filtered:
+        return None
+
+    playlist = random.choice(filtered)
     playlist_id = playlist['id']
     playlist_name = playlist['name']
-    print(f"🎧 감정: {emotion}")
-    print(f"📚 추천 플레이리스트: {playlist_name}")
-    print(f"🔗 링크: {playlist['external_urls']['spotify']}\n")
+    playlist_url = playlist['external_urls']['spotify']
 
-    # 곡 5개 출력
-    tracks = sp.playlist_tracks(playlist_id, limit=5)
-    for t in tracks['items']:
+    tracks_data = sp.playlist_tracks(playlist_id, limit=3, market="KR")
+    songs = []
+
+    for t in tracks_data['items']:
         track = t['track']
         name = track['name']
         artist = track['artists'][0]['name']
         url = track['external_urls']['spotify']
-        print(f"🎵 {name} - {artist}\n   🔗 {url}\n")
+        songs.append({
+            'name': name,
+            'artist': artist,
+            'url': url
+        })
+
+    return {
+        'emotion': emotion,
+        'playlist_name': playlist_name,
+        'playlist_url': playlist_url,
+        'songs': songs
+    }
+    
+# 이건 main.py에 붙여넣기 해야함.    
+# from recommendation import recommend_music_by_emotion
+
+result = recommend_music_by_emotion('기쁨')
+
+if result:
+    print(f"🎧 감정: {result['emotion']}")
+    print(f"📚 추천 플레이리스트: {result['playlist_name']}")
+    print(f"🔗 링크: {result['playlist_url']}\n")
+
+    for song in result['songs']:
+        print(f"🎵 {song['name']} - {song['artist']}\n   🔗 {song['url']}\n")
 else:
-    print(f"❌ '{emotion}' 감정에 맞는 플레이리스트를 찾지 못했습니다.")
+    print("❌ 감정에 맞는 플레이리스트를 찾지 못했습니다.")
